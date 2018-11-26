@@ -1,0 +1,14 @@
+{
+  "name": "wayback-spn-client",
+  "version": "0.0.1",
+  "description": "Automates Headless Chrome to trigger the Internet Archive's \"Save Page Now\" feature.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Rob Brackett <rob@robbrackett.com>",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "puppeteer": "^1.10.0"
+  }
+}
