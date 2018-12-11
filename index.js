@@ -59,7 +59,7 @@ async function work (queue, browser) {
         waitUntil: 'domcontentloaded'
       }).catch(error => null);
     }
-    
+
     const time = ((Date.now() - start) / 1000).toFixed(1);
     if (!page.url().startsWith(`${ARCHIVE_BASE}web/`)) {
       console.error(`Took too long to save ${url} (${time} s)`);
@@ -81,7 +81,10 @@ async function workOnFile (filePath) {
     throw new Error(`Can't load file at path: ${filePath}`);
   }
 
-  const queue = text.split('\n').map(line => line.trim());
+  // One URL per line, skipping blank lines and comment lines (`# Comment`)
+  const queue = text.split('\n')
+    .map(line => line.trim())
+    .filter(line => !!line && !line.startsWith('#'));
   const browser = await puppeteer.launch({args: BROWSER_ARGS});
   console.log(`Saving ${queue.length} URLs...`);
 
