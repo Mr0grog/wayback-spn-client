@@ -9,6 +9,6 @@
   "author": "Rob Brackett <rob@robbrackett.com>",
   "license": "BSD-3-Clause",
   "dependencies": {
-    "puppeteer": "^1.10.0"
+    "puppeteer": "^1.11.0"
   }
 }
