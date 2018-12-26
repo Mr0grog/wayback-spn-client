@@ -22,6 +22,21 @@ if (!Promise.prototype.finally) {
   };
 }
 
+function delay (milliseconds) {
+  let timer = 0;
+  let complete = null;
+  const result = new Promise(resolve => {
+    complete = aborted => {
+      complete = () => null;
+      clearTimeout(timer);
+      resolve({timer: milliseconds, aborted});
+    };
+    timer = setTimeout(() => complete(false), milliseconds);
+  });
+  result.abort = () => complete(true);
+  return result;
+}
+
 
 /**
  * Read URLs from the queue and save them using the Wayback Machine's "Save
@@ -30,7 +45,7 @@ if (!Promise.prototype.finally) {
  * @param {Promise<puppeteer.Browser>} browser Promise for a puppeteer browser
  */
 async function work (queue, browser) {
-  const page = await browser.newPage();
+  let page = null;
 
   let url;
   while (url = queue.shift()) {
@@ -40,6 +55,10 @@ async function work (queue, browser) {
     catch (error) {
       console.error(`Invalid URL: ${url}`);
       continue;
+    }
+
+    if (!page) {
+      page = await browser.newPage();
     }
 
     const timeout = PAGE_TIMEOUT;
@@ -53,23 +72,40 @@ async function work (queue, browser) {
     // `web.archive.org/web/{timestamp}/{url}`
     while (!page.url().startsWith(`${ARCHIVE_BASE}web/`)) {
       const remaining = timeout - (Date.now() - start);
-      if (remaining < 0) break;
-      await page.waitForNavigation({
-        timeout: remaining,
-        waitUntil: 'domcontentloaded'
-      }).catch(error => null);
+      if (remaining <= 0) break;
+
+      let timer = delay(remaining);
+      await Promise.race([
+        page.waitForNavigation({
+          timeout: remaining,
+          waitUntil: 'domcontentloaded'
+        }).catch(error => null),
+        // waitForNavigation's timeout doesn't always seem to work, so use our
+        // own timer to bail out early here.
+        timer
+      ]);
+      timer.abort();
     }
 
     const time = ((Date.now() - start) / 1000).toFixed(1);
     if (!page.url().startsWith(`${ARCHIVE_BASE}web/`)) {
       console.error(`Took too long to save ${url} (${time} s)`);
+      // Clear out the current page instance and force creating a fresh one
+      page.close();
+      page = null;
+      // Wait a moment before continuing in case we've overheated Wayback or
+      // the captured site
+      await delay(500);
+
     }
     else {
       console.log(`Saved ${page.url()} (${time} s)`);
     }
   }
 
-  await page.close();
+  if (page) {
+    await page.close();
+  }
 }
 
 async function workOnFile (filePath) {
